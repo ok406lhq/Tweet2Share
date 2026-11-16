@@ -1,5 +1,6 @@
 import "./style.css";
 import { toPng } from "html-to-image";
+import { fetchTweet } from "./tweet.js";
 
 const PAGE_HEIGHT = 2000;
 const SAMPLE_URL = "https://x.com/jack/status/20";
@@ -50,7 +51,7 @@ const state = {
 app.innerHTML = `
   <div class="app">
     <header class="topbar">
-      <div class="logo"><img class="mark-img" src="/favicon.png" alt="" /> Tweet2Share</div>
+      <div class="logo"><img class="mark-img" src="./favicon.png" alt="" /> Tweet2Share</div>
       <div class="chips">
         <span class="chip">免费 · 无需登录</span>
         <span class="chip">无水印</span>
@@ -246,7 +247,8 @@ function showStatus(message) {
 
 function proxyUrl(url) {
   if (!url) return "";
-  return `/api/proxy?url=${encodeURIComponent(url)}`;
+  if (import.meta.env.DEV) return `/api/proxy?url=${encodeURIComponent(url)}`;
+  return url;
 }
 
 function escapeHtml(value) {
@@ -484,21 +486,11 @@ async function parseUrl(url) {
   els.parseBtn.disabled = true;
   els.parseBtn.innerHTML = `<span class="loading"></span>导入中`;
   try {
-    const response = await fetch("/api/parse", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ url }),
-    });
-    const data = await response.json().catch(() => ({}));
-    if (!response.ok) {
-      showError(data.message || "解析失败，请稍后重试");
-      return;
-    }
-    state.tweet = data.tweet;
+    state.tweet = await fetchTweet(url);
     showStatus("导入完成。可继续改样式，或直接保存 PNG。");
     renderPreview();
-  } catch {
-    showError("解析服务暂时不可用");
+  } catch (err) {
+    showError((err && err.messageText) || "解析服务暂时不可用");
   } finally {
     state.loading = false;
     els.parseBtn.disabled = false;

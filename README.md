@@ -21,6 +21,14 @@ Tweet2Share 是一个轻量级网页工具。粘贴公开推文链接后，系�
 - 推文来源：公开的 [FxTwitter API](https://docs.fxembed.com/api/twitter/operations/2statusid/)
 - 图片经后端同源代理，便于画布导出
 
+## GitHub Pages
+
+仓库地址：https://github.com/ok406lhq/Tweet2Share
+
+Pages 地址：https://ok406lhq.github.io/Tweet2Share/
+
+GitHub Pages 只托管静态前端。推送到 `main` 后，Actions 会构建 `frontend/` 并发布。首次需要在仓库 Settings → Pages 中把 Source 设为 GitHub Actions。
+
 ## 本地运行
 
 ```bash
