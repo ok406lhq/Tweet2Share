@@ -1,0 +1,9 @@
+{
+  "name": "tweet2share",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "test": "npm --prefix backend test",
+    "dev": "bash ./start.sh"
+  }
+}
