@@ -1,5 +1,4 @@
 import "./style.css";
-import { toPng } from "html-to-image";
 import { fetchTweet } from "./tweet.js";
 
 const PAGE_HEIGHT = 2000;
@@ -22,8 +21,8 @@ const BACKGROUNDS = [
 ];
 
 const FONTS = [
-  { id: "sans", label: "Instrument Sans" },
-  { id: "grotesk", label: "Space Grotesk" },
+  { id: "sans", label: "Sans" },
+  { id: "grotesk", label: "Grotesk" },
   { id: "serif", label: "Georgia" },
 ];
 
@@ -245,34 +244,66 @@ function showStatus(message) {
   els.status.textContent = state.status;
 }
 
-const blobCache = new Map();
+const imageCache = new Map();
 
 function isLocalAsset(url) {
   return typeof url === "string" && (url.startsWith("blob:") || url.startsWith("data:") || url.startsWith("./") || url.startsWith("/"));
 }
 
+function corsImageUrl(url) {
+  try {
+    const parsed = new URL(url);
+    if (parsed.hostname === "twimg.com" || parsed.hostname.endsWith(".twimg.com")) {
+      return `https://images.weserv.nl/?url=${encodeURIComponent(url)}`;
+    }
+  } catch {
+    return null;
+  }
+  return null;
+}
+
+function blobToDataUrl(blob) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(String(reader.result || ""));
+    reader.onerror = reject;
+    reader.readAsDataURL(blob);
+  });
+}
+
+async function fetchImageAsDataUrl(src) {
+  const response = await fetch(src, { mode: "cors", credentials: "omit", referrerPolicy: "no-referrer" });
+  if (!response.ok) throw new Error("IMAGE_FETCH_FAILED");
+  const blob = await response.blob();
+  const type = blob.type || "image/jpeg";
+  if (!type.startsWith("image/") && type !== "application/octet-stream") {
+    throw new Error("NOT_AN_IMAGE");
+  }
+  const dataUrl = await blobToDataUrl(blob);
+  if (!dataUrl.startsWith("data:")) throw new Error("NOT_DATA_URL");
+  return dataUrl;
+}
+
 async function toLocalImageUrl(url) {
   if (!url || isLocalAsset(url)) return url;
-  if (blobCache.has(url)) return blobCache.get(url);
+  if (imageCache.has(url)) return imageCache.get(url);
 
   const candidates = [];
   if (import.meta.env.DEV) candidates.push(`/api/proxy?url=${encodeURIComponent(url)}`);
   candidates.push(url);
+  const proxied = corsImageUrl(url);
+  if (proxied) candidates.push(proxied);
 
   for (const src of candidates) {
     try {
-      const response = await fetch(src, { mode: "cors", credentials: "omit" });
-      if (!response.ok) continue;
-      const blob = await response.blob();
-      if (!blob || !blob.type.startsWith("image/")) continue;
-      const objectUrl = URL.createObjectURL(blob);
-      blobCache.set(url, objectUrl);
-      return objectUrl;
+      const dataUrl = await fetchImageAsDataUrl(src);
+      imageCache.set(url, dataUrl);
+      return dataUrl;
     } catch {
       continue;
     }
   }
-  return url;
+  return proxied || url;
 }
 
 async function localizeTweetImages(tweet) {
@@ -290,7 +321,10 @@ async function localizeTweetImages(tweet) {
 }
 
 function proxyUrl(url) {
-  return url || "";
+  if (!url) return "";
+  if (isLocalAsset(url)) return url;
+  if (import.meta.env.DEV) return `/api/proxy?url=${encodeURIComponent(url)}`;
+  return corsImageUrl(url) || url;
 }
 
 function escapeHtml(value) {
@@ -322,7 +356,7 @@ function verifiedBadge() {
 function authorBlock(author) {
   const initial = escapeHtml((author.name || author.screenName || "?").slice(0, 1));
   const avatar = author.avatarUrl
-    ? `<img class="avatar" src="${escapeHtml(proxyUrl(author.avatarUrl))}" alt="" />`
+        ? `<img class="avatar" src="${escapeHtml(proxyUrl(author.avatarUrl))}" alt="" crossorigin="anonymous" referrerpolicy="no-referrer" />`
     : `<div class="avatar fallback">${initial}</div>`;
   return `
     <div class="card-top">
@@ -343,7 +377,7 @@ function photosBlock(photos) {
   const imgs = photos
     .map(
       (photo) =>
-        `<img src="${escapeHtml(proxyUrl(photo.url))}" alt="${escapeHtml(photo.alt || "")}" ${
+        `<img src="${escapeHtml(proxyUrl(photo.url))}" alt="${escapeHtml(photo.alt || "")}" crossorigin="anonymous" referrerpolicy="no-referrer" ${
           photo.width ? `width="${photo.width}"` : ""
         } ${photo.height ? `height="${photo.height}"` : ""} />`
     )
@@ -461,40 +495,303 @@ function waitForImages(root) {
   );
 }
 
-function sceneFill() {
-  if (state.background === "clear") return "#ffffff";
-  return undefined;
+const CARD_THEMES = {
+  paper: { bg: "#ffffff", fg: "#141416", muted: "#667085", line: "#ececef", border: 1 },
+  midnight: { bg: "#17151d", fg: "#f5f3ef", muted: "#a39e96", line: "#2c2833", border: 1 },
+  editorial: { bg: "#fbf7f0", fg: "#1a1612", muted: "#7a7166", line: "#e8dfd2", border: 1 },
+  outline: { bg: "#ffffff", fg: "#141416", muted: "#667085", line: "#141416", border: 2 },
+};
+
+const SCENE_COLORS = {
+  mist: ["#e8edf5", "#dfe4ee", "#ece7e2"],
+  lilac: ["#ece4f7", "#e4d7f0", "#f3e8f0"],
+  peach: ["#f8e4d6", "#f3d5c4", "#f6e9dc"],
+  sand: ["#efe6d6", "#e6dcc8", "#f2eadc"],
+  dusk: ["#2a3144", "#3a3348", "#1e2433"],
+  clear: ["#ffffff", "#ffffff", "#ffffff"],
+};
+
+const FONT_STACK = {
+  sans: '"PingFang SC", "Noto Sans SC", "Segoe UI", "Helvetica Neue", sans-serif',
+  grotesk: '"Avenir Next", "PingFang SC", "Segoe UI", sans-serif',
+  serif: 'Georgia, "Songti SC", "Noto Serif SC", serif',
+};
+
+function roundRectPath(ctx, x, y, w, h, r) {
+  const radius = Math.max(0, Math.min(r, w / 2, h / 2));
+  ctx.beginPath();
+  ctx.moveTo(x + radius, y);
+  ctx.arcTo(x + w, y, x + w, y + h, radius);
+  ctx.arcTo(x + w, y + h, x, y + h, radius);
+  ctx.arcTo(x, y + h, x, y, radius);
+  ctx.arcTo(x, y, x + w, y, radius);
+  ctx.closePath();
+}
+
+function wrapLines(ctx, text, maxWidth) {
+  const paragraphs = String(text || "").split("\n");
+  const lines = [];
+  for (const paragraph of paragraphs) {
+    if (paragraph === "") {
+      lines.push("");
+      continue;
+    }
+    let current = "";
+    for (const ch of paragraph) {
+      const next = current + ch;
+      if (current && ctx.measureText(next).width > maxWidth) {
+        lines.push(current);
+        current = ch;
+      } else {
+        current = next;
+      }
+    }
+    if (current) lines.push(current);
+  }
+  return lines.length ? lines : [""];
+}
+
+function loadExportImage(url) {
+  return new Promise((resolve) => {
+    if (!url) {
+      resolve(null);
+      return;
+    }
+    const img = new Image();
+    if (!isLocalAsset(url)) {
+      img.crossOrigin = "anonymous";
+      img.referrerPolicy = "no-referrer";
+    }
+    img.onload = () => resolve(img);
+    img.onerror = () => resolve(null);
+    img.src = url;
+  });
+}
+
+async function collectImages(tweet, bucket) {
+  if (!tweet) return;
+  if (tweet.author?.avatarUrl) bucket.push(tweet.author.avatarUrl);
+  if (state.showPhotos && Array.isArray(tweet.photos)) {
+    tweet.photos.forEach((photo) => {
+      if (photo?.url) bucket.push(photo.url);
+    });
+  }
+  if (state.showQuote && tweet.quote) await collectImages(tweet.quote, bucket);
+}
+
+function drawVerified(ctx, x, y, size) {
+  ctx.save();
+  ctx.fillStyle = "#1d9bf0";
+  ctx.beginPath();
+  ctx.arc(x + size / 2, y + size / 2, size / 2, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.strokeStyle = "#fff";
+  ctx.lineWidth = Math.max(1.6, size * 0.16);
+  ctx.lineCap = "round";
+  ctx.lineJoin = "round";
+  ctx.beginPath();
+  ctx.moveTo(x + size * 0.28, y + size * 0.52);
+  ctx.lineTo(x + size * 0.44, y + size * 0.68);
+  ctx.lineTo(x + size * 0.74, y + size * 0.34);
+  ctx.stroke();
+  ctx.restore();
+}
+
+function drawAuthor(ctx, author, img, x, y, theme, avatarSize, fontFamily) {
+  if (img) {
+    ctx.save();
+    ctx.beginPath();
+    ctx.arc(x + avatarSize / 2, y + avatarSize / 2, avatarSize / 2, 0, Math.PI * 2);
+    ctx.clip();
+    ctx.drawImage(img, x, y, avatarSize, avatarSize);
+    ctx.restore();
+  } else {
+    ctx.fillStyle = theme.line;
+    ctx.beginPath();
+    ctx.arc(x + avatarSize / 2, y + avatarSize / 2, avatarSize / 2, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.fillStyle = theme.muted;
+    ctx.font = `bold 16px ${fontFamily}`;
+    ctx.textBaseline = "middle";
+    const initial = String(author.name || author.screenName || "?").slice(0, 1);
+    ctx.fillText(initial, x + avatarSize / 2 - ctx.measureText(initial).width / 2, y + avatarSize / 2);
+  }
+
+  const textX = x + avatarSize + 12;
+  ctx.fillStyle = theme.fg;
+  ctx.font = `bold 16px ${fontFamily}`;
+  ctx.textBaseline = "top";
+  ctx.fillText(author.name || "", textX, y + 4);
+  const nameWidth = ctx.measureText(author.name || "").width;
+  if (author.verified) drawVerified(ctx, textX + nameWidth + 6, y + 5, 16);
+  ctx.fillStyle = theme.muted;
+  ctx.font = `13px ${fontFamily}`;
+  ctx.fillText(`@${author.screenName || ""}`, textX, y + 26);
+  return avatarSize;
+}
+
+function measureTweetBlock(ctx, tweet, contentWidth, nested, fontFamily, bodySize, images) {
+  const avatarSize = nested ? 32 : 48;
+  const bodyFont = nested ? bodySize * 0.72 : bodySize;
+  let height = avatarSize;
+  ctx.font = `${bodyFont}px ${fontFamily}`;
+  const lines = wrapLines(ctx, tweet.text, contentWidth);
+  height += 22 + lines.length * bodyFont * 1.42;
+  if (state.showPhotos && tweet.photos?.length) {
+    height += 20;
+    tweet.photos.forEach((photo) => {
+      const img = images.get(photo.url);
+      const ratio = img && img.naturalWidth ? img.naturalHeight / img.naturalWidth : 9 / 16;
+      height += contentWidth * ratio + 10;
+    });
+    height -= 10;
+  }
+  if (!nested && state.showQuote && tweet.quote) {
+    height += 18 + 26 + measureTweetBlock(ctx, tweet.quote, contentWidth - 28, true, fontFamily, bodySize, images);
+  }
+  return height;
+}
+
+function paintTweetBlock(ctx, tweet, x, y, contentWidth, nested, theme, fontFamily, bodySize, images) {
+  const avatarSize = nested ? 32 : 48;
+  let cursor = y;
+  cursor += drawAuthor(ctx, tweet.author, images.get(tweet.author?.avatarUrl), x, cursor, theme, avatarSize, fontFamily);
+  cursor += 22;
+  const bodyFont = nested ? bodySize * 0.72 : bodySize;
+  ctx.fillStyle = theme.fg;
+  ctx.font = `${bodyFont}px ${fontFamily}`;
+  ctx.textBaseline = "top";
+  const lines = wrapLines(ctx, tweet.text, contentWidth);
+  const lineHeight = bodyFont * 1.42;
+  lines.forEach((line) => {
+    ctx.fillText(line, x, cursor);
+    cursor += lineHeight;
+  });
+  if (state.showPhotos && tweet.photos?.length) {
+    cursor += 20;
+    tweet.photos.forEach((photo) => {
+      const img = images.get(photo.url);
+      const ratio = img && img.naturalWidth ? img.naturalHeight / img.naturalWidth : 9 / 16;
+      const h = contentWidth * ratio;
+      roundRectPath(ctx, x, cursor, contentWidth, h, 10);
+      ctx.save();
+      ctx.clip();
+      if (img) ctx.drawImage(img, x, cursor, contentWidth, h);
+      else {
+        ctx.fillStyle = "rgba(127,127,127,0.08)";
+        ctx.fillRect(x, cursor, contentWidth, h);
+      }
+      ctx.restore();
+      cursor += h + 10;
+    });
+    cursor -= 10;
+  }
+  if (!nested && state.showQuote && tweet.quote) {
+    cursor += 18;
+    const innerWidth = contentWidth - 28;
+    const quoteHeight = 26 + measureTweetBlock(ctx, tweet.quote, innerWidth, true, fontFamily, bodySize, images);
+    roundRectPath(ctx, x, cursor, contentWidth, quoteHeight, Math.max(8, state.corners * 0.7));
+    ctx.strokeStyle = theme.line;
+    ctx.lineWidth = 1;
+    ctx.stroke();
+    cursor = paintTweetBlock(ctx, tweet.quote, x + 14, cursor + 14, innerWidth, true, theme, fontFamily, bodySize, images);
+    cursor += 12;
+  }
+  return cursor;
 }
 
 async function captureCanvas() {
-  const node = els.canvas;
+  const tweet = state.tweet;
+  if (!tweet) throw new Error("NO_CARD");
   const card = document.querySelector("#share-card");
-  if (!card) throw new Error("NO_CARD");
-  await waitForImages(card);
-  const width = Math.round(state.cardWidth + state.outerSpacing * 2);
-  const height = Math.ceil(Math.max(node.scrollHeight, card.offsetHeight + state.outerSpacing * 2));
-  return toPng(node, {
-    cacheBust: true,
-    pixelRatio: 2,
-    backgroundColor: sceneFill() || "#f3f4f7",
-    width,
-    height,
-    skipFonts: true,
-    fontEmbedCSS: "",
-    style: {
-      width: `${width}px`,
-      maxWidth: `${width}px`,
-      margin: "0",
-      transform: "none",
-    },
-    filter: (element) => {
-      if (element.tagName === "LINK") return false;
-      if (element.tagName === "STYLE" && element.textContent && element.textContent.includes("fonts.googleapis")) {
-        return false;
-      }
-      return true;
-    },
-  });
+  if (card) await waitForImages(card);
+
+  const urls = [];
+  await collectImages(tweet, urls);
+  const images = new Map();
+  await Promise.all(
+    [...new Set(urls)].map(async (url) => {
+      images.set(url, await loadExportImage(url));
+    })
+  );
+
+  const pad = state.outerSpacing;
+  const cardWidth = state.cardWidth;
+  const canvasWidth = Math.round(cardWidth + pad * 2);
+  const theme = CARD_THEMES[state.treatment] || CARD_THEMES.paper;
+  const fontFamily = FONT_STACK[state.font] || FONT_STACK.sans;
+  const bodySize = state.textSize;
+  const sidePad = 30;
+  const contentWidth = cardWidth - sidePad * 2;
+
+  const measureCanvas = document.createElement("canvas");
+  const measureCtx = measureCanvas.getContext("2d");
+  let innerHeight = measureTweetBlock(measureCtx, tweet, contentWidth, false, fontFamily, bodySize, images);
+  if (state.showDate) innerHeight += 22 + 14 + 16;
+  if (state.showSource) innerHeight += 14 + 16;
+  const cardHeight = Math.ceil(32 + innerHeight + 24);
+  const canvasHeight = Math.ceil(cardHeight + pad * 2);
+  const scale = 2;
+  const canvas = document.createElement("canvas");
+  canvas.width = canvasWidth * scale;
+  canvas.height = canvasHeight * scale;
+  const ctx = canvas.getContext("2d");
+  ctx.scale(scale, scale);
+
+  const scene = SCENE_COLORS[state.background] || SCENE_COLORS.mist;
+  const gradient = ctx.createLinearGradient(0, 0, canvasWidth * 0.35, canvasHeight);
+  gradient.addColorStop(0, scene[0]);
+  gradient.addColorStop(0.48, scene[1]);
+  gradient.addColorStop(1, scene[2]);
+  ctx.fillStyle = gradient;
+  ctx.fillRect(0, 0, canvasWidth, canvasHeight);
+
+  const cardX = pad;
+  const cardY = pad;
+  ctx.save();
+  ctx.shadowColor = `rgba(20, 16, 28, ${Math.min(0.45, state.shadow / 140)})`;
+  ctx.shadowBlur = state.shadow * 1.1;
+  ctx.shadowOffsetY = state.shadow * 0.18;
+  roundRectPath(ctx, cardX, cardY, cardWidth, cardHeight, state.corners);
+  ctx.fillStyle = theme.bg;
+  ctx.fill();
+  ctx.restore();
+  roundRectPath(ctx, cardX, cardY, cardWidth, cardHeight, state.corners);
+  ctx.strokeStyle = theme.line;
+  ctx.lineWidth = theme.border;
+  ctx.stroke();
+
+  let y = paintTweetBlock(ctx, tweet, cardX + sidePad, cardY + 32, contentWidth, false, theme, fontFamily, bodySize, images);
+  if (state.showDate) {
+    y += 22;
+    ctx.strokeStyle = theme.line;
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    ctx.moveTo(cardX + sidePad, y);
+    ctx.lineTo(cardX + cardWidth - sidePad, y);
+    ctx.stroke();
+    y += 14;
+    ctx.fillStyle = theme.muted;
+    ctx.font = `12px ${fontFamily}`;
+    ctx.textBaseline = "top";
+    const left = formatTime(tweet.createdAt);
+    ctx.fillText(left, cardX + sidePad, y);
+    const right = "X / Twitter";
+    ctx.fillText(right, cardX + cardWidth - sidePad - ctx.measureText(right).width, y);
+    y += 16;
+  }
+  if (state.showSource) {
+    y += 14;
+    ctx.fillStyle = theme.muted;
+    ctx.font = `11px ${fontFamily}`;
+    ctx.textBaseline = "top";
+    wrapLines(ctx, tweet.url, contentWidth).forEach((line) => {
+      ctx.fillText(line, cardX + sidePad, y);
+      y += 14;
+    });
+  }
+
+  return canvas.toDataURL("image/png");
 }
 
 function slicePng(dataUrl, pageHeight) {
