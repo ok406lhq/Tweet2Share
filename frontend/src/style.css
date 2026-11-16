@@ -7,9 +7,9 @@
   --accent: #111827;
   --danger: #b42318;
   --ok: #067647;
-  --sans: "Instrument Sans", "PingFang SC", "Noto Sans SC", sans-serif;
-  --grotesk: "Space Grotesk", "PingFang SC", sans-serif;
-  --serif: "Source Serif 4", Georgia, "Noto Serif SC", serif;
+  --sans: "IBM Plex Sans", "PingFang SC", "Noto Sans SC", "Segoe UI", sans-serif;
+  --grotesk: "Space Grotesk", "Avenir Next", "PingFang SC", sans-serif;
+  --serif: Georgia, "Source Serif 4", "Noto Serif SC", serif;
   --radius: 16px;
   --card-bg: #ffffff;
   --card-fg: #141416;

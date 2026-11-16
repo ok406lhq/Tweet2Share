@@ -245,10 +245,52 @@ function showStatus(message) {
   els.status.textContent = state.status;
 }
 
-function proxyUrl(url) {
-  if (!url) return "";
-  if (import.meta.env.DEV) return `/api/proxy?url=${encodeURIComponent(url)}`;
+const blobCache = new Map();
+
+function isLocalAsset(url) {
+  return typeof url === "string" && (url.startsWith("blob:") || url.startsWith("data:") || url.startsWith("./") || url.startsWith("/"));
+}
+
+async function toLocalImageUrl(url) {
+  if (!url || isLocalAsset(url)) return url;
+  if (blobCache.has(url)) return blobCache.get(url);
+
+  const candidates = [];
+  if (import.meta.env.DEV) candidates.push(`/api/proxy?url=${encodeURIComponent(url)}`);
+  candidates.push(url);
+
+  for (const src of candidates) {
+    try {
+      const response = await fetch(src, { mode: "cors", credentials: "omit" });
+      if (!response.ok) continue;
+      const blob = await response.blob();
+      if (!blob || !blob.type.startsWith("image/")) continue;
+      const objectUrl = URL.createObjectURL(blob);
+      blobCache.set(url, objectUrl);
+      return objectUrl;
+    } catch {
+      continue;
+    }
+  }
   return url;
+}
+
+async function localizeTweetImages(tweet) {
+  if (!tweet) return tweet;
+  if (tweet.author?.avatarUrl) {
+    tweet.author.avatarUrl = await toLocalImageUrl(tweet.author.avatarUrl);
+  }
+  if (Array.isArray(tweet.photos)) {
+    for (const photo of tweet.photos) {
+      photo.url = await toLocalImageUrl(photo.url);
+    }
+  }
+  if (tweet.quote) await localizeTweetImages(tweet.quote);
+  return tweet;
+}
+
+function proxyUrl(url) {
+  return url || "";
 }
 
 function escapeHtml(value) {
@@ -434,14 +476,23 @@ async function captureCanvas() {
   return toPng(node, {
     cacheBust: true,
     pixelRatio: 2,
-    backgroundColor: sceneFill(),
+    backgroundColor: sceneFill() || "#f3f4f7",
     width,
     height,
+    skipFonts: true,
+    fontEmbedCSS: "",
     style: {
       width: `${width}px`,
       maxWidth: `${width}px`,
       margin: "0",
       transform: "none",
+    },
+    filter: (element) => {
+      if (element.tagName === "LINK") return false;
+      if (element.tagName === "STYLE" && element.textContent && element.textContent.includes("fonts.googleapis")) {
+        return false;
+      }
+      return true;
     },
   });
 }
@@ -486,7 +537,7 @@ async function parseUrl(url) {
   els.parseBtn.disabled = true;
   els.parseBtn.innerHTML = `<span class="loading"></span>导入中`;
   try {
-    state.tweet = await fetchTweet(url);
+    state.tweet = await localizeTweetImages(await fetchTweet(url));
     showStatus("导入完成。可继续改样式，或直接保存 PNG。");
     renderPreview();
   } catch (err) {
