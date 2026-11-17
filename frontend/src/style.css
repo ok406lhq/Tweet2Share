@@ -17,7 +17,7 @@
   --card-line: #ececef;
   --card-border: 1px;
   --card-font: var(--sans);
-  --card-size: 24px;
+  --card-size: 20px;
   --card-width: 560px;
   --scene-pad: 64px;
   --card-radius: 20px;
@@ -99,10 +99,42 @@ a {
   object-fit: cover;
 }
 
+.topbar-right {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
 .chips {
   display: flex;
   gap: 8px;
   flex-wrap: wrap;
+}
+
+.lang-switch {
+  display: inline-flex;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: #fff;
+  overflow: hidden;
+}
+
+.lang-switch button {
+  height: 28px;
+  padding: 0 10px;
+  font-size: 12px;
+  color: var(--muted);
+}
+
+.lang-switch button.active {
+  background: #111;
+  color: #fff;
+}
+
+.credit {
+  font-size: 12px;
+  color: var(--muted);
+  letter-spacing: 0.02em;
 }
 
 .chip {
@@ -118,39 +150,39 @@ a {
 }
 
 .hero {
-  max-width: 1120px;
-  margin: 0 auto;
-  padding: 36px 22px 18px;
+  max-width: none;
+  margin: 0;
+  padding: 18px 10px 16px;
 }
 
 .kicker {
-  margin: 0 0 10px;
+  margin: 0 0 6px;
   color: var(--muted);
-  font-size: 13px;
+  font-size: 11px;
   letter-spacing: 0.08em;
   text-transform: uppercase;
 }
 
 .hero h1 {
-  margin: 0 0 10px;
-  font-size: clamp(34px, 5vw, 56px);
-  line-height: 1.05;
-  letter-spacing: -0.045em;
+  margin: 0 0 6px;
+  font-size: 22px;
+  line-height: 1.28;
+  letter-spacing: -0.03em;
   font-weight: 650;
 }
 
-.hero p {
+.hero .lead {
   margin: 0;
   max-width: 560px;
   color: var(--muted);
-  font-size: 16px;
-  line-height: 1.55;
+  font-size: 13.5px;
+  line-height: 1.5;
 }
 
 .studio-wrap {
   max-width: 1280px;
   margin: 0 auto;
-  padding: 8px 16px 48px;
+  padding: 8px 16px 24px;
 }
 
 .studio {
@@ -479,6 +511,20 @@ select {
   display: flex;
   justify-content: center;
   align-items: flex-start;
+  position: relative;
+}
+
+.scene-credit {
+  position: absolute;
+  right: max(12px, calc(var(--scene-pad) * 0.28));
+  bottom: max(10px, calc(var(--scene-pad) * 0.18));
+  font-size: 11px;
+  color: rgba(20, 16, 28, 0.38);
+  pointer-events: none;
+}
+
+.scene-dusk .scene-credit {
+  color: rgba(255, 255, 255, 0.55);
 }
 
 #preview {
@@ -683,12 +729,12 @@ select {
 }
 
 .howto {
-  max-width: 1120px;
-  margin: 0 auto;
-  padding: 8px 22px 72px;
+  max-width: none;
+  margin: 18px 0 0;
+  padding: 0 0 48px;
   display: grid;
   grid-template-columns: repeat(3, 1fr);
-  gap: 16px;
+  gap: 12px;
 }
 
 .howto article {
@@ -746,6 +792,12 @@ select {
     grid-template-columns: 1fr;
   }
   .hero {
-    padding-top: 24px;
+    padding: 14px 4px 12px;
+  }
+  .hero h1 {
+    font-size: 20px;
+  }
+  .chips {
+    display: none;
   }
 }

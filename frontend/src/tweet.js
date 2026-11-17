@@ -163,7 +163,7 @@ export async function fetchTweet(input) {
   if (!id) {
     const error = new Error("INVALID_URL");
     error.code = 400;
-    error.messageText = "请粘贴有效的 X / Twitter 推文链接";
+    error.key = "invalidUrl";
     throw error;
   }
 
@@ -185,7 +185,7 @@ export async function fetchTweet(input) {
       if (code === 404 || code === 401 || code === 403 || result.status === 404) {
         const error = new Error("TWEET_NOT_FOUND");
         error.code = 404;
-        error.messageText = "无法获取该公开推文";
+        error.key = "notFound";
         throw error;
       }
       if (code >= 500) {
@@ -195,14 +195,14 @@ export async function fetchTweet(input) {
       if (!status || status.type === "tombstone") {
         const error = new Error("TWEET_NOT_FOUND");
         error.code = 404;
-        error.messageText = "无法获取该公开推文";
+        error.key = "notFound";
         throw error;
       }
       const tweet = mapTweet(status);
       if (!tweet) {
         const error = new Error("TWEET_NOT_FOUND");
         error.code = 404;
-        error.messageText = "无法获取该公开推文";
+        error.key = "notFound";
         throw error;
       }
       return tweet;
@@ -214,9 +214,6 @@ export async function fetchTweet(input) {
 
   const error = new Error("UPSTREAM_UNAVAILABLE");
   error.code = 502;
-  error.messageText =
-    lastKind === "network"
-      ? "浏览器无法直连解析接口。本地请用 start.sh；GitHub Pages 需允许公开 API 访问。"
-      : "解析服务暂时不可用";
+  error.key = lastKind === "network" ? "network" : "upstream";
   throw error;
 }

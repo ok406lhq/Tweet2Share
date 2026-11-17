@@ -26,16 +26,138 @@ const FONTS = [
   { id: "serif", label: "Georgia" },
 ];
 
+const CREDIT = "anomo";
+
+const I18N = {
+  zh: {
+    docTitle: "Tweet2Share — 把推文变成可分享的图文",
+    chipFree: "免费 · 无需登录",
+    chipClean: "无水印",
+    chipLink: "X / Twitter 链接",
+    kicker: "从一条链接到可分享的图",
+    heroTitle: "把推文变成图片。保留原文，给它空间。",
+    heroLead: "粘贴公开的 X 帖子链接，保留作者与来源，选择一种仍然好读的设计，然后导出 PNG。",
+    importLabel: "从链接开始 · X / Twitter",
+    importBtn: "导入帖子",
+    importHint: "粘贴公开链接后按 Enter。也支持 twitter.com、镜像域名或纯推文 ID。",
+    sample: "试用公开示例",
+    clear: "清空",
+    styleTitle: "选择样式",
+    styleHint: "文字保持 X 返回的原文。",
+    font: "字体",
+    size: "字号",
+    sceneTitle: "设置场景",
+    sceneHint: "给帖子留白，但不裁切内容。",
+    cardWidth: "卡片宽度",
+    padding: "外边距",
+    radius: "圆角",
+    shadow: "阴影",
+    contextTitle: "保留上下文",
+    contextHint: "缺失信息不会被补造。",
+    togPhotos: "图片与视频封面",
+    togQuote: "引用推文",
+    togDate: "发布时间",
+    togSource: "卡片下方来源链接",
+    exportTitle: "导出",
+    exportHint: "长图适配完整内容；分页适合超长帖。",
+    savePng: "保存 PNG",
+    copyPng: "复制 PNG",
+    exportPages: "分页导出",
+    live: "实时预览",
+    previewEmptyLabel: "粘贴链接后在此预览",
+    openOriginal: "打开原帖",
+    empty: "粘贴公开帖子链接，预览会出现在这里。",
+    how1t: "1. 粘贴帖子链接",
+    how1p: "复制一条公开 X / Twitter 帖子链接，导入后保留作者、正文和图片顺序。",
+    how2t: "2. 设计，但不改字",
+    how2p: "选择样式、背景和间距。原文、名字和用户名保持原样。",
+    how3t: "3. 保存一张好读的图",
+    how3p: "导出长图 PNG，或把超长内容分页。无水印，适合直接转发。",
+    imported: "导入完成。可继续改样式，或直接保存 PNG。",
+    invalidUrl: "请粘贴有效的 X / Twitter 推文链接",
+    notFound: "无法获取该公开推文",
+    network: "浏览器无法直连解析接口。本地请用 start.sh；GitHub Pages 需允许公开 API 访问。",
+    upstream: "解析服务暂时不可用",
+    exportFail: "导出失败，请确认图片已加载完成后再试",
+    copied: "PNG 已复制到剪贴板。",
+    copyFail: "当前浏览器无法复制图片，请改用保存 PNG",
+    importing: "导入中",
+    paper: "浅色卡片",
+    midnight: "深色卡片",
+    editorial: "衬线排版",
+    outline: "描边卡片",
+  },
+  en: {
+    docTitle: "Tweet2Share — Turn tweets into shareable images",
+    chipFree: "Free · No login",
+    chipClean: "No watermark",
+    chipLink: "X / Twitter links",
+    kicker: "From a public link to a shareable image",
+    heroTitle: "Turn a tweet into an image. Keep the words. Give them room.",
+    heroLead: "Paste a public X post, keep the author and source, pick a readable layout, then export a PNG.",
+    importLabel: "Start from a link · X / Twitter",
+    importBtn: "Import post",
+    importHint: "Paste a public link and press Enter. twitter.com, public mirrors, and raw tweet IDs also work.",
+    sample: "Try a public sample",
+    clear: "Clear",
+    styleTitle: "Choose a style",
+    styleHint: "The text stays exactly as X returned it.",
+    font: "Font",
+    size: "Type size",
+    sceneTitle: "Set the scene",
+    sceneHint: "Give the post space without cropping it.",
+    cardWidth: "Card width",
+    padding: "Outer margin",
+    radius: "Corners",
+    shadow: "Shadow",
+    contextTitle: "Keep context",
+    contextHint: "Missing details are never invented.",
+    togPhotos: "Photos and video covers",
+    togQuote: "Quoted tweet",
+    togDate: "Posted time",
+    togSource: "Source link under the card",
+    exportTitle: "Export",
+    exportHint: "A long image fits the full post. Pages work for very long threads.",
+    savePng: "Save PNG",
+    copyPng: "Copy PNG",
+    exportPages: "Export pages",
+    live: "Live preview",
+    previewEmptyLabel: "Preview appears here after you paste a link",
+    openOriginal: "Open original",
+    empty: "Paste a public post link and the preview will show up here.",
+    how1t: "1. Paste a post link",
+    how1p: "Copy a public X / Twitter link. Import keeps the author, body, and image order.",
+    how2t: "2. Design without rewriting",
+    how2p: "Pick a style, background, and spacing. The original text, name, and handle stay as they are.",
+    how3t: "3. Save a readable image",
+    how3p: "Export a long PNG, or split a very long post into pages. No watermark, ready to share.",
+    imported: "Imported. Adjust the look, or save a PNG now.",
+    invalidUrl: "Paste a valid X / Twitter post link",
+    notFound: "This public tweet could not be fetched",
+    network: "The browser could not reach the parser. Use start.sh locally; GitHub Pages needs public API access.",
+    upstream: "The parser is temporarily unavailable",
+    exportFail: "Export failed. Wait until images finish loading, then try again",
+    copied: "PNG copied to the clipboard.",
+    copyFail: "This browser cannot copy images. Use Save PNG instead",
+    importing: "Importing",
+    paper: "Light card",
+    midnight: "Dark card",
+    editorial: "Serif layout",
+    outline: "Outlined card",
+  },
+};
+
 const app = document.querySelector("#app");
 
 const state = {
+  lang: "zh",
   tweet: null,
   loading: false,
-  error: "",
-  status: "",
+  errorKey: "",
+  statusKey: "",
   treatment: "paper",
   font: "sans",
-  textSize: 24,
+  textSize: 20,
   background: "mist",
   cardWidth: 560,
   outerSpacing: 64,
@@ -47,36 +169,47 @@ const state = {
   showSource: true,
 };
 
+function t(key) {
+  const pack = I18N[state.lang] || I18N.zh;
+  return pack[key] ?? I18N.zh[key] ?? key;
+}
+
 app.innerHTML = `
   <div class="app">
     <header class="topbar">
       <div class="logo"><img class="mark-img" src="./favicon.png" alt="" /> Tweet2Share</div>
-      <div class="chips">
-        <span class="chip">免费 · 无需登录</span>
-        <span class="chip">无水印</span>
-        <span class="chip">X / Twitter 链接</span>
+      <div class="topbar-right">
+        <div class="chips">
+          <span class="chip" data-i18n="chipFree">免费 · 无需登录</span>
+          <span class="chip" data-i18n="chipClean">无水印</span>
+          <span class="chip" data-i18n="chipLink">X / Twitter 链接</span>
+        </div>
+        <div class="lang-switch" role="group" aria-label="Language">
+          <button type="button" data-lang="zh" class="active">中文</button>
+          <button type="button" data-lang="en">EN</button>
+        </div>
+        <span class="credit">${CREDIT}</span>
       </div>
     </header>
 
-    <section class="hero">
-      <p class="kicker">从一条链接到可分享的图</p>
-      <h1>把推文变成图片。<br>保留原文，给它空间。</h1>
-      <p>粘贴公开的 X 帖子链接，保留作者与来源，选择一种仍然好读的设计，然后导出 PNG。</p>
-    </section>
-
     <div class="studio-wrap">
+      <section class="hero">
+        <p class="kicker" data-i18n="kicker">从一条链接到可分享的图</p>
+        <h1 data-i18n="heroTitle">把推文变成图片。保留原文，给它空间。</h1>
+        <p class="lead" data-i18n="heroLead">粘贴公开的 X 帖子链接，保留作者与来源，选择一种仍然好读的设计，然后导出 PNG。</p>
+      </section>
       <div class="studio">
         <aside class="panel">
           <form id="parse-form" class="import-box">
-            <span class="label">从链接开始 · X / Twitter</span>
+            <span class="label" data-i18n="importLabel">从链接开始 · X / Twitter</span>
             <div class="field">
               <input id="url-input" type="text" placeholder="https://x.com/username/status/123" autocomplete="off" />
-              <button class="primary" id="parse-btn" type="submit">导入帖子</button>
+              <button class="primary" id="parse-btn" type="submit" data-i18n="importBtn">导入帖子</button>
             </div>
-            <p class="hint">粘贴公开链接后按 Enter。也支持 twitter.com、镜像域名或纯推文 ID。</p>
+            <p class="hint" data-i18n="importHint">粘贴公开链接后按 Enter。也支持 twitter.com、镜像域名或纯推文 ID。</p>
             <div class="row-actions">
-              <button class="ghost" id="sample-btn" type="button">试用公开示例</button>
-              <button class="ghost" id="clear-btn" type="button">清空</button>
+              <button class="ghost" id="sample-btn" type="button" data-i18n="sample">试用公开示例</button>
+              <button class="ghost" id="clear-btn" type="button" data-i18n="clear">清空</button>
             </div>
             <div id="error" class="error" hidden></div>
             <div id="status" class="status" hidden></div>
@@ -86,18 +219,18 @@ app.innerHTML = `
             <div class="section-h">
               <span class="num">01</span>
               <div>
-                <h2>选择样式</h2>
-                <p>文字保持 X 返回的原文。</p>
+                <h2 data-i18n="styleTitle">选择样式</h2>
+                <p data-i18n="styleHint">文字保持 X 返回的原文。</p>
               </div>
             </div>
             <div class="choices" id="treatments"></div>
             <div class="control">
-              <div class="control-h"><span>字体</span></div>
+              <div class="control-h"><span data-i18n="font">字体</span></div>
               <select id="font-select"></select>
             </div>
             <div class="control">
-              <div class="control-h"><span>字号</span><span id="size-val">24 px</span></div>
-              <input id="size-range" type="range" min="18" max="36" value="24" />
+              <div class="control-h"><span data-i18n="size">字号</span><span id="size-val">20 px</span></div>
+              <input id="size-range" type="range" min="16" max="32" value="20" />
             </div>
           </section>
 
@@ -105,25 +238,25 @@ app.innerHTML = `
             <div class="section-h">
               <span class="num">02</span>
               <div>
-                <h2>设置场景</h2>
-                <p>给帖子留白，但不裁切内容。</p>
+                <h2 data-i18n="sceneTitle">设置场景</h2>
+                <p data-i18n="sceneHint">给帖子留白，但不裁切内容。</p>
               </div>
             </div>
             <div class="swatches" id="backgrounds"></div>
             <div class="control">
-              <div class="control-h"><span>卡片宽度</span><span id="width-val">560 px</span></div>
+              <div class="control-h"><span data-i18n="cardWidth">卡片宽度</span><span id="width-val">560 px</span></div>
               <input id="width-range" type="range" min="420" max="760" value="560" />
             </div>
             <div class="control">
-              <div class="control-h"><span>外边距</span><span id="pad-val">64 px</span></div>
+              <div class="control-h"><span data-i18n="padding">外边距</span><span id="pad-val">64 px</span></div>
               <input id="pad-range" type="range" min="16" max="120" value="64" />
             </div>
             <div class="control">
-              <div class="control-h"><span>圆角</span><span id="radius-val">20</span></div>
+              <div class="control-h"><span data-i18n="radius">圆角</span><span id="radius-val">20</span></div>
               <input id="radius-range" type="range" min="0" max="36" value="20" />
             </div>
             <div class="control">
-              <div class="control-h"><span>阴影</span><span id="shadow-val">28</span></div>
+              <div class="control-h"><span data-i18n="shadow">阴影</span><span id="shadow-val">28</span></div>
               <input id="shadow-range" type="range" min="0" max="60" value="28" />
             </div>
           </section>
@@ -132,15 +265,15 @@ app.innerHTML = `
             <div class="section-h">
               <span class="num">03</span>
               <div>
-                <h2>保留上下文</h2>
-                <p>缺失信息不会被补造。</p>
+                <h2 data-i18n="contextTitle">保留上下文</h2>
+                <p data-i18n="contextHint">缺失信息不会被补造。</p>
               </div>
             </div>
             <div class="toggles">
-              <label class="toggle"><input id="tog-photos" type="checkbox" checked /> 图片与视频封面</label>
-              <label class="toggle"><input id="tog-quote" type="checkbox" checked /> 引用推文</label>
-              <label class="toggle"><input id="tog-date" type="checkbox" checked /> 发布时间</label>
-              <label class="toggle"><input id="tog-source" type="checkbox" checked /> 卡片下方来源链接</label>
+              <label class="toggle"><input id="tog-photos" type="checkbox" checked /> <span data-i18n="togPhotos">图片与视频封面</span></label>
+              <label class="toggle"><input id="tog-quote" type="checkbox" checked /> <span data-i18n="togQuote">引用推文</span></label>
+              <label class="toggle"><input id="tog-date" type="checkbox" checked /> <span data-i18n="togDate">发布时间</span></label>
+              <label class="toggle"><input id="tog-source" type="checkbox" checked /> <span data-i18n="togSource">卡片下方来源链接</span></label>
             </div>
           </section>
 
@@ -148,14 +281,14 @@ app.innerHTML = `
             <div class="section-h">
               <span class="num">04</span>
               <div>
-                <h2>导出</h2>
-                <p>长图适配完整内容；分页适合超长帖。</p>
+                <h2 data-i18n="exportTitle">导出</h2>
+                <p data-i18n="exportHint">长图适配完整内容；分页适合超长帖。</p>
               </div>
             </div>
             <div class="row-actions">
-              <button class="primary" id="export-long" type="button" disabled>保存 PNG</button>
-              <button class="ghost" id="export-copy" type="button" disabled>复制 PNG</button>
-              <button class="ghost" id="export-pages" type="button" disabled>分页导出</button>
+              <button class="primary" id="export-long" type="button" disabled data-i18n="savePng">保存 PNG</button>
+              <button class="ghost" id="export-copy" type="button" disabled data-i18n="copyPng">复制 PNG</button>
+              <button class="ghost" id="export-pages" type="button" disabled data-i18n="exportPages">分页导出</button>
             </div>
           </section>
         </aside>
@@ -163,11 +296,11 @@ app.innerHTML = `
         <section class="preview-col">
           <div class="filebar">
             <div class="filebar-left">
-              <span class="live">Live preview</span>
+              <span class="live" data-i18n="live">实时预览</span>
               <strong id="preview-label">粘贴链接后在此预览</strong>
             </div>
             <div class="filebar-actions">
-              <button class="ghost" id="open-x" type="button" disabled>打开原帖</button>
+              <button class="ghost" id="open-x" type="button" disabled data-i18n="openOriginal">打开原帖</button>
             </div>
           </div>
           <div class="scene-scroll">
@@ -175,26 +308,27 @@ app.innerHTML = `
               <div id="preview">
                 <div class="empty">粘贴公开帖子链接，预览会出现在这里。</div>
               </div>
+              <div class="scene-credit">${CREDIT}</div>
             </div>
           </div>
         </section>
       </div>
-    </div>
 
-    <section class="howto">
-      <article>
-        <h3>1. 粘贴帖子链接</h3>
-        <p>复制一条公开 X / Twitter 帖子链接，导入后保留作者、正文和图片顺序。</p>
-      </article>
-      <article>
-        <h3>2. 设计，但不改字</h3>
-        <p>选择样式、背景和间距。原文、名字和用户名保持原样。</p>
-      </article>
-      <article>
-        <h3>3. 保存一张好读的图</h3>
-        <p>导出长图 PNG，或把超长内容分页。无水印，适合直接转发。</p>
-      </article>
-    </section>
+      <section class="howto">
+        <article>
+          <h3 data-i18n="how1t">1. 粘贴帖子链接</h3>
+          <p data-i18n="how1p">复制一条公开 X / Twitter 帖子链接，导入后保留作者、正文和图片顺序。</p>
+        </article>
+        <article>
+          <h3 data-i18n="how2t">2. 设计，但不改字</h3>
+          <p data-i18n="how2p">选择样式、背景和间距。原文、名字和用户名保持原样。</p>
+        </article>
+        <article>
+          <h3 data-i18n="how3t">3. 保存一张好读的图</h3>
+          <p data-i18n="how3p">导出长图 PNG，或把超长内容分页。无水印，适合直接转发。</p>
+        </article>
+      </section>
+    </div>
   </div>
 `;
 
@@ -230,18 +364,35 @@ const els = {
   preview: document.querySelector("#preview"),
   canvas: document.querySelector("#export-canvas"),
   previewLabel: document.querySelector("#preview-label"),
+  langSwitch: document.querySelector(".lang-switch"),
 };
 
-function showError(message) {
-  state.error = message || "";
-  els.error.hidden = !state.error;
-  els.error.textContent = state.error;
+function showError(key) {
+  state.errorKey = key || "";
+  els.error.hidden = !state.errorKey;
+  els.error.textContent = state.errorKey ? t(state.errorKey) : "";
 }
 
-function showStatus(message) {
-  state.status = message || "";
-  els.status.hidden = !state.status;
-  els.status.textContent = state.status;
+function showStatus(key) {
+  state.statusKey = key || "";
+  els.status.hidden = !state.statusKey;
+  els.status.textContent = state.statusKey ? t(state.statusKey) : "";
+}
+
+function applyI18n() {
+  document.documentElement.lang = state.lang === "en" ? "en" : "zh-CN";
+  document.title = t("docTitle");
+  document.querySelectorAll("[data-i18n]").forEach((node) => {
+    node.textContent = t(node.dataset.i18n);
+  });
+  if (els.langSwitch) {
+    els.langSwitch.querySelectorAll("[data-lang]").forEach((btn) => {
+      btn.classList.toggle("active", btn.dataset.lang === state.lang);
+    });
+  }
+  if (els.parseBtn && !state.loading) els.parseBtn.textContent = t("importBtn");
+  if (state.errorKey) els.error.textContent = t(state.errorKey);
+  if (state.statusKey) els.status.textContent = t(state.statusKey);
 }
 
 const imageCache = new Map();
@@ -340,7 +491,7 @@ function formatTime(value) {
   if (!value) return "";
   const date = new Date(value);
   if (Number.isNaN(date.getTime())) return value;
-  return new Intl.DateTimeFormat("zh-CN", {
+  return new Intl.DateTimeFormat(state.lang === "en" ? "en-US" : "zh-CN", {
     year: "numeric",
     month: "short",
     day: "numeric",
@@ -421,8 +572,8 @@ function renderPreview() {
   els.openX.disabled = !ready;
 
   if (!state.tweet) {
-    els.preview.innerHTML = `<div class="empty">粘贴公开帖子链接，预览会出现在这里。</div>`;
-    els.previewLabel.textContent = "粘贴链接后在此预览";
+    els.preview.innerHTML = `<div class="empty">${t("empty")}</div>`;
+    els.previewLabel.textContent = t("previewEmptyLabel");
     applyDesignVars();
     return;
   }
@@ -444,11 +595,12 @@ function renderPreview() {
 }
 
 function renderControls() {
+  const notes = { paper: t("paper"), midnight: t("midnight"), editorial: t("editorial"), outline: t("outline") };
   els.treatments.innerHTML = TREATMENTS.map(
     (item) => `
       <button class="choice ${state.treatment === item.id ? "active" : ""}" type="button" data-treatment="${item.id}">
         <b>${item.label}</b>
-        <small>${item.note}</small>
+        <small>${notes[item.id] || item.note}</small>
       </button>
     `
   ).join("");
@@ -791,6 +943,12 @@ async function captureCanvas() {
     });
   }
 
+  ctx.fillStyle = state.background === "dusk" ? "rgba(255,255,255,0.55)" : "rgba(20,16,28,0.38)";
+  ctx.font = `11px ${fontFamily}`;
+  ctx.textAlign = "right";
+  ctx.textBaseline = "bottom";
+  ctx.fillText(CREDIT, canvasWidth - Math.max(16, pad * 0.28), canvasHeight - Math.max(10, pad * 0.18));
+
   return canvas.toDataURL("image/png");
 }
 
@@ -826,23 +984,23 @@ async function parseUrl(url) {
   showError("");
   showStatus("");
   if (!url) {
-    showError("请粘贴有效的 X / Twitter 推文链接");
+    showError("invalidUrl");
     return;
   }
 
   state.loading = true;
   els.parseBtn.disabled = true;
-  els.parseBtn.innerHTML = `<span class="loading"></span>导入中`;
+  els.parseBtn.innerHTML = `<span class="loading"></span>${t("importing")}`;
   try {
     state.tweet = await localizeTweetImages(await fetchTweet(url));
-    showStatus("导入完成。可继续改样式，或直接保存 PNG。");
+    showStatus("imported");
     renderPreview();
   } catch (err) {
-    showError((err && err.messageText) || "解析服务暂时不可用");
+    showError((err && err.key) || "upstream");
   } finally {
     state.loading = false;
     els.parseBtn.disabled = false;
-    els.parseBtn.textContent = "导入帖子";
+    els.parseBtn.textContent = t("importBtn");
   }
 }
 
@@ -945,7 +1103,7 @@ els.exportLong.addEventListener("click", async () => {
     const dataUrl = await captureCanvas();
     downloadDataUrl(dataUrl, `${filenameBase(state.tweet)}.png`);
   } catch {
-    showError("导出失败，请确认图片已加载完成后再试");
+    showError("exportFail");
   } finally {
     els.exportLong.disabled = false;
   }
@@ -958,9 +1116,9 @@ els.exportCopy.addEventListener("click", async () => {
     const dataUrl = await captureCanvas();
     const blob = await (await fetch(dataUrl)).blob();
     await navigator.clipboard.write([new ClipboardItem({ "image/png": blob })]);
-    showStatus("PNG 已复制到剪贴板。");
+    showStatus("copied");
   } catch {
-    showError("当前浏览器无法复制图片，请改用保存 PNG");
+    showError("copyFail");
   } finally {
     els.exportCopy.disabled = false;
   }
@@ -982,11 +1140,21 @@ els.exportPages.addEventListener("click", async () => {
       }
     }
   } catch {
-    showError("导出失败，请确认图片已加载完成后再试");
+    showError("exportFail");
   } finally {
     els.exportPages.disabled = false;
   }
 });
 
+els.langSwitch.addEventListener("click", (event) => {
+  const btn = event.target.closest("[data-lang]");
+  if (!btn || btn.dataset.lang === state.lang) return;
+  state.lang = btn.dataset.lang;
+  applyI18n();
+  renderControls();
+  renderPreview();
+});
+
+applyI18n();
 renderControls();
 renderPreview();

@@ -1,60 +1,68 @@
 # Tweet2Share
 
-Turn X (Twitter) posts into beautiful, shareable images.
+Turn public X (Twitter) posts into readable, shareable PNG images.
 
-Tweet2Share 是一个轻量级网页工具。粘贴公开推文链接后，系统提取正文、作者信息和原图，自动排版为分享卡片，并导出 PNG。
+Live site: https://ok406lhq.github.io/Tweet2Share/
 
-核心体验：复制链接 → 自动提取 → 自动排版 → 导出分享。
+[中文说明](README.zh.md)
 
-## 功能
+## What it does
 
-- 识别 `x.com` / `twitter.com` 及常见公开镜像链接，也支持直接粘贴推文 ID
-- 提取正文、作者名称、用户名、头像与认证标记，保留换行
-- 按原顺序提取图片，优先使用 `name=orig` 原图
-- 引用推文嵌套展示
-- 预览卡片后导出长图 PNG，或按约 2000px 高度分页导出
+Paste a public post link. Tweet2Share keeps the original text, author, and image order, lays them out as a share card, and exports a PNG.
 
-## 技术栈
+Flow: copy a link → import → choose a layout → export.
 
-- 前端：Vite + 原生 JavaScript + html-to-image
-- 后端：Express
-- 推文来源：公开的 [FxTwitter API](https://docs.fxembed.com/api/twitter/operations/2statusid/)
-- 图片经后端同源代理，便于画布导出
+## Features
+
+- Accepts `x.com`, `twitter.com`, common public mirrors, and raw tweet IDs
+- Keeps the body, display name, handle, avatar, and verification mark, including line breaks
+- Loads photos in original order, preferring `name=orig` full-size images
+- Nested quoted tweets
+- Long PNG export, or pages around 2000px tall
+- Chinese / English UI switch (Chinese by default on the site)
+- Credit `anomo` in the top-right of the site and the bottom-right of exported images
+
+## Stack
+
+- Frontend: Vite + vanilla JavaScript, canvas export
+- Backend: Express (local development only)
+- Tweet source: public [FxTwitter API](https://docs.fxembed.com/api/twitter/operations/2statusid/)
+- Local images go through a same-origin proxy so canvas export can read them
 
 ## GitHub Pages
 
-仓库地址：https://github.com/ok406lhq/Tweet2Share
+Repository: https://github.com/ok406lhq/Tweet2Share
 
-Pages 地址：https://ok406lhq.github.io/Tweet2Share/
+Pages hosts the static frontend only. Pushing `main` builds `frontend/` with Actions. Set Pages Source to GitHub Actions the first time (Settings → Pages).
 
-GitHub Pages 只托管静态前端。推送到 `main` 后，Actions 会构建 `frontend/` 并发布。首次需要在仓库 Settings → Pages 中把 Source 设为 GitHub Actions。
+On Pages there is no backend. The browser talks to FxTwitter directly, and tweet images are loaded through a CORS-friendly image proxy for export.
 
-## 本地运行
+## Run locally
 
 ```bash
-# 安装后端依赖
+# Install backend dependencies
 cd backend
 npm install
 
-# 安装前端依赖
+# Install frontend dependencies
 cd ../frontend
 npm install
 
-# 回到仓库根目录，同时启动前后端
+# Start both services from the repo root
 cd ..
 bash start.sh
 ```
 
-前端默认 `http://localhost:5173`，后端 `http://localhost:3001`。开发时 Vite 会把 `/api` 代理到后端。
+Frontend: `http://localhost:5173`. Backend: `http://localhost:3001`. Vite proxies `/api` to the backend in development.
 
 ```bash
-# 运行后端单元测试
+# Backend unit tests
 npm --prefix backend test
 ```
 
-## 使用说明
+## Notes
 
-- 仅处理你有权访问和使用的公开内容
-- 请遵守 X（Twitter）服务条款
-- 保存或分享前请确认拥有相应使用权限，并保留原作者署名
-- 私密账号、已删除或不公开的推文无法解析
+- Only public posts you have the right to use
+- Follow X (Twitter) terms of service
+- Keep original author credit before saving or sharing
+- Private, deleted, or unavailable posts cannot be parsed
