@@ -1,8 +1,12 @@
 import "./style.css";
-import { fetchTweet } from "./tweet.js";
+import { extractTweetId, fetchTweet } from "./tweet.js";
+import { extractWeiboRef, fetchWeibo } from "./weibo.js";
 
 const PAGE_HEIGHT = 2000;
-const SAMPLE_URL = "https://x.com/jack/status/20";
+const SAMPLE_URLS = {
+  x: "https://x.com/jack/status/20",
+  weibo: "https://weibo.com/7961606632/QkRpSCuRm",
+};
 
 const TREATMENTS = [
   { id: "paper", label: "Paper", note: "浅色卡片" },
@@ -34,17 +38,20 @@ const I18N = {
     docTitle: "Tweet2Share — 把推文变成可分享的图文",
     chipFree: "免费 · 无需登录",
     chipClean: "无水印",
-    chipLink: "X / Twitter 链接",
+    chipLink: "X / 微博链接",
     kicker: "从一条链接到可分享的图",
-    heroTitle: "把推文变成图片。保留原文，给它空间。",
-    heroLead: "粘贴公开的 X 帖子链接，保留作者与来源，选择一种仍然好读的设计，然后导出 PNG。",
-    importLabel: "从链接开始 · X / Twitter",
+    heroTitle: "把帖子变成图片。保留原文，给它空间。",
+    heroLead: "粘贴公开的 X 或微博链接，保留作者与来源，选择一种仍然好读的设计，然后导出 PNG。",
+    importLabel: "从链接开始",
     importBtn: "导入帖子",
-    importHint: "粘贴公开链接后按 Enter。也支持 twitter.com、镜像域名或纯推文 ID。",
+    importHintX: "粘贴公开链接后按 Enter。也支持 twitter.com、镜像域名或纯推文 ID。",
+    importHintWeibo: "粘贴公开微博链接后按 Enter。支持 weibo.com、m.weibo.cn 或微博 bid。",
+    platformX: "X / Twitter",
+    platformWeibo: "微博",
     sample: "试用公开示例",
     clear: "清空",
     styleTitle: "选择样式",
-    styleHint: "文字保持 X 返回的原文。",
+    styleHint: "文字保持原帖返回的原文。",
     font: "字体",
     size: "字号",
     sceneTitle: "设置场景",
@@ -56,7 +63,7 @@ const I18N = {
     contextTitle: "保留上下文",
     contextHint: "缺失信息不会被补造。",
     togPhotos: "图片",
-    togQuote: "引用推文",
+    togQuote: "引用 / 转发",
     togDate: "发布时间",
     togSource: "卡片下方来源链接",
     togReplies: "下方评论",
@@ -72,14 +79,14 @@ const I18N = {
     openOriginal: "打开原帖",
     empty: "粘贴公开帖子链接，预览会出现在这里。",
     how1t: "1. 粘贴帖子链接",
-    how1p: "复制一条公开 X / Twitter 帖子链接，导入后保留作者、正文和图片顺序。",
+    how1p: "复制一条公开 X 或微博链接，导入后保留作者、正文和图片顺序。",
     how2t: "2. 设计，但不改字",
     how2p: "选择样式、背景和间距。原文、名字和用户名保持原样。",
     how3t: "3. 保存一张好读的图",
     how3p: "导出长图 PNG，或把超长内容分页。无水印，适合直接转发。",
     imported: "导入完成。可继续改样式，或直接保存 PNG。",
-    invalidUrl: "请粘贴有效的 X / Twitter 推文链接",
-    notFound: "无法获取该公开推文",
+    invalidUrl: "请粘贴有效的帖子链接",
+    notFound: "无法获取该公开帖子",
     network: "浏览器无法直连解析接口。本地请用 start.sh；GitHub Pages 需允许公开 API 访问。",
     upstream: "解析服务暂时不可用",
     exportFail: "导出失败，请确认图片已加载完成后再试",
@@ -95,17 +102,20 @@ const I18N = {
     docTitle: "Tweet2Share — Turn tweets into shareable images",
     chipFree: "Free · No login",
     chipClean: "No watermark",
-    chipLink: "X / Twitter links",
+    chipLink: "X / Weibo links",
     kicker: "From a public link to a shareable image",
-    heroTitle: "Turn a tweet into an image. Keep the words. Give them room.",
-    heroLead: "Paste a public X post, keep the author and source, pick a readable layout, then export a PNG.",
-    importLabel: "Start from a link · X / Twitter",
+    heroTitle: "Turn a post into an image. Keep the words. Give them room.",
+    heroLead: "Paste a public X or Weibo post, keep the author and source, pick a readable layout, then export a PNG.",
+    importLabel: "Start from a link",
     importBtn: "Import post",
-    importHint: "Paste a public link and press Enter. twitter.com, public mirrors, and raw tweet IDs also work.",
+    importHintX: "Paste a public link and press Enter. twitter.com, public mirrors, and raw tweet IDs also work.",
+    importHintWeibo: "Paste a public Weibo link and press Enter. weibo.com, m.weibo.cn, and Weibo bids also work.",
+    platformX: "X / Twitter",
+    platformWeibo: "Weibo",
     sample: "Try a public sample",
     clear: "Clear",
     styleTitle: "Choose a style",
-    styleHint: "The text stays exactly as X returned it.",
+    styleHint: "The text stays exactly as the original post returned it.",
     font: "Font",
     size: "Type size",
     sceneTitle: "Set the scene",
@@ -117,7 +127,7 @@ const I18N = {
     contextTitle: "Keep context",
     contextHint: "Missing details are never invented.",
     togPhotos: "Photos",
-    togQuote: "Quoted tweet",
+    togQuote: "Quote / repost",
     togDate: "Posted time",
     togSource: "Source link under the card",
     togReplies: "Comments below",
@@ -133,14 +143,14 @@ const I18N = {
     openOriginal: "Open original",
     empty: "Paste a public post link and the preview will show up here.",
     how1t: "1. Paste a post link",
-    how1p: "Copy a public X / Twitter link. Import keeps the author, body, and image order.",
+    how1p: "Copy a public X or Weibo link. Import keeps the author, body, and image order.",
     how2t: "2. Design without rewriting",
     how2p: "Pick a style, background, and spacing. The original text, name, and handle stay as they are.",
     how3t: "3. Save a readable image",
     how3p: "Export a long PNG, or split a very long post into pages. No watermark, ready to share.",
     imported: "Imported. Adjust the look, or save a PNG now.",
-    invalidUrl: "Paste a valid X / Twitter post link",
-    notFound: "This public tweet could not be fetched",
+    invalidUrl: "Paste a valid post link",
+    notFound: "This public post could not be fetched",
     network: "The browser could not reach the parser. Use start.sh locally; GitHub Pages needs public API access.",
     upstream: "The parser is temporarily unavailable",
     exportFail: "Export failed. Wait until images finish loading, then try again",
@@ -158,6 +168,7 @@ const app = document.querySelector("#app");
 
 const state = {
   lang: "zh",
+  platform: "x",
   tweet: null,
   loading: false,
   errorKey: "",
@@ -191,13 +202,16 @@ app.innerHTML = `
         <div class="chips">
           <span class="chip" data-i18n="chipFree">免费 · 无需登录</span>
           <span class="chip" data-i18n="chipClean">无水印</span>
-          <span class="chip" data-i18n="chipLink">X / Twitter 链接</span>
+          <span class="chip" data-i18n="chipLink">X / 微博链接</span>
         </div>
         <div class="lang-switch" role="group" aria-label="Language">
           <button type="button" data-lang="zh" class="active">中文</button>
           <button type="button" data-lang="en">EN</button>
         </div>
-        <a class="github-link" href="${REPO_URL}" target="_blank" rel="noopener">GitHub</a>
+        <a class="github-link" href="${REPO_URL}" target="_blank" rel="noopener" title="${REPO_URL}">
+          <svg class="github-icon" viewBox="0 0 16 16" aria-hidden="true"><path fill="currentColor" d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82A7.65 7.65 0 0 1 8 4.51c.68.003 1.36.092 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0 0 16 8c0-4.42-3.58-8-8-8Z"/></svg>
+          <span>ok406lhq/Tweet2Share</span>
+        </a>
         <span class="credit">${CREDIT}</span>
       </div>
     </header>
@@ -205,18 +219,22 @@ app.innerHTML = `
     <div class="studio-wrap">
       <section class="hero">
         <p class="kicker" data-i18n="kicker">从一条链接到可分享的图</p>
-        <h1 data-i18n="heroTitle">把推文变成图片。保留原文，给它空间。</h1>
-        <p class="lead" data-i18n="heroLead">粘贴公开的 X 帖子链接，保留作者与来源，选择一种仍然好读的设计，然后导出 PNG。</p>
+        <h1 data-i18n="heroTitle">把帖子变成图片。保留原文，给它空间。</h1>
+        <p class="lead" data-i18n="heroLead">粘贴公开的 X 或微博链接，保留作者与来源，选择一种仍然好读的设计，然后导出 PNG。</p>
       </section>
       <div class="studio">
         <aside class="panel">
           <form id="parse-form" class="import-box">
-            <span class="label" data-i18n="importLabel">从链接开始 · X / Twitter</span>
+            <span class="label" data-i18n="importLabel">从链接开始</span>
+            <div class="platform-switch" role="group" aria-label="Platform">
+              <button type="button" data-platform="x" class="active" data-i18n="platformX">X / Twitter</button>
+              <button type="button" data-platform="weibo" data-i18n="platformWeibo">微博</button>
+            </div>
             <div class="field">
               <input id="url-input" type="text" placeholder="https://x.com/username/status/123" autocomplete="off" />
               <button class="primary" id="parse-btn" type="submit" data-i18n="importBtn">导入帖子</button>
             </div>
-            <p class="hint" data-i18n="importHint">粘贴公开链接后按 Enter。也支持 twitter.com、镜像域名或纯推文 ID。</p>
+            <p class="hint" id="import-hint" data-i18n="importHintX">粘贴公开链接后按 Enter。也支持 twitter.com、镜像域名或纯推文 ID。</p>
             <div class="row-actions">
               <button class="ghost" id="sample-btn" type="button" data-i18n="sample">试用公开示例</button>
               <button class="ghost" id="clear-btn" type="button" data-i18n="clear">清空</button>
@@ -230,7 +248,7 @@ app.innerHTML = `
               <span class="num">01</span>
               <div>
                 <h2 data-i18n="styleTitle">选择样式</h2>
-                <p data-i18n="styleHint">文字保持 X 返回的原文。</p>
+                <p data-i18n="styleHint">文字保持原帖返回的原文。</p>
               </div>
             </div>
             <div class="choices" id="treatments"></div>
@@ -281,7 +299,7 @@ app.innerHTML = `
             </div>
             <div class="toggles">
               <label class="toggle"><input id="tog-photos" type="checkbox" checked /> <span data-i18n="togPhotos">图片</span></label>
-              <label class="toggle"><input id="tog-quote" type="checkbox" checked /> <span data-i18n="togQuote">引用推文</span></label>
+              <label class="toggle"><input id="tog-quote" type="checkbox" checked /> <span data-i18n="togQuote">引用 / 转发</span></label>
               <label class="toggle"><input id="tog-date" type="checkbox" checked /> <span data-i18n="togDate">发布时间</span></label>
               <label class="toggle"><input id="tog-source" type="checkbox" checked /> <span data-i18n="togSource">卡片下方来源链接</span></label>
               <label class="toggle"><input id="tog-replies" type="checkbox" checked /> <span data-i18n="togReplies">下方评论</span></label>
@@ -332,7 +350,7 @@ app.innerHTML = `
       <section class="howto">
         <article>
           <h3 data-i18n="how1t">1. 粘贴帖子链接</h3>
-          <p data-i18n="how1p">复制一条公开 X / Twitter 帖子链接，导入后保留作者、正文和图片顺序。</p>
+          <p data-i18n="how1p">复制一条公开 X 或微博链接，导入后保留作者、正文和图片顺序。</p>
         </article>
         <article>
           <h3 data-i18n="how2t">2. 设计，但不改字</h3>
@@ -383,6 +401,8 @@ const els = {
   canvas: document.querySelector("#export-canvas"),
   previewLabel: document.querySelector("#preview-label"),
   langSwitch: document.querySelector(".lang-switch"),
+  platformSwitch: document.querySelector(".platform-switch"),
+  importHint: document.querySelector("#import-hint"),
 };
 
 function showError(key) {
@@ -411,6 +431,7 @@ function applyI18n() {
   if (els.parseBtn && !state.loading) els.parseBtn.textContent = t("importBtn");
   if (state.errorKey) els.error.textContent = t(state.errorKey);
   if (state.statusKey) els.status.textContent = t(state.statusKey);
+  applyPlatformUi();
 }
 
 const imageCache = new Map();
@@ -419,11 +440,19 @@ function isLocalAsset(url) {
   return typeof url === "string" && (url.startsWith("blob:") || url.startsWith("data:") || url.startsWith("./") || url.startsWith("/"));
 }
 
+function isSinaHost(host) {
+  return host === "sinaimg.cn" || host.endsWith(".sinaimg.cn");
+}
+
 function corsImageUrl(url) {
   try {
     const parsed = new URL(url);
-    if (parsed.hostname === "twimg.com" || parsed.hostname.endsWith(".twimg.com")) {
+    const host = parsed.hostname.toLowerCase();
+    if (host === "twimg.com" || host.endsWith(".twimg.com")) {
       return `https://images.weserv.nl/?url=${encodeURIComponent(url)}`;
+    }
+    if (isSinaHost(host)) {
+      return `https://i0.wp.com/${host}${parsed.pathname}${parsed.search}${parsed.search ? "&" : "?"}ssl=1`;
     }
   } catch {
     return null;
@@ -521,6 +550,26 @@ function formatTime(value) {
   }).format(date);
 }
 
+function sourceLabel(tweet) {
+  return tweet?.platform === "weibo" ? t("platformWeibo") : t("platformX");
+}
+
+function applyPlatformUi() {
+  if (els.platformSwitch) {
+    els.platformSwitch.querySelectorAll("[data-platform]").forEach((btn) => {
+      btn.classList.toggle("active", btn.dataset.platform === state.platform);
+    });
+  }
+  if (els.input) {
+    els.input.placeholder =
+      state.platform === "weibo" ? "https://weibo.com/username/AbCdEfGhI" : "https://x.com/username/status/123";
+  }
+  if (els.importHint) {
+    els.importHint.dataset.i18n = state.platform === "weibo" ? "importHintWeibo" : "importHintX";
+    els.importHint.textContent = t(els.importHint.dataset.i18n);
+  }
+}
+
 function verifiedBadge() {
   return `<svg class="badge" viewBox="0 0 24 24" aria-hidden="true"><path fill="#1d9bf0" d="M22.25 12c0 1.17-.3 2.27-.84 3.24.54.97.84 2.07.84 3.24 0 3.59-2.91 6.5-6.5 6.5-1.17 0-2.27-.3-3.24-.84A6.47 6.47 0 0 1 9.27 24C5.68 24 2.77 21.09 2.77 17.5c0-1.17.3-2.27.84-3.24A6.47 6.47 0 0 1 2.77 11C2.77 7.41 5.68 4.5 9.27 4.5c1.17 0 2.27.3 3.24.84A6.47 6.47 0 0 1 15.75 4.5c3.59 0 6.5 2.91 6.5 6.5 0 1.17-.3 2.27-.84 3.24.54.97.84 2.07.84 3.24Z"/><path fill="#fff" d="m10.7 16.7-3.2-3.2 1.4-1.4 1.8 1.79 4.4-4.39 1.4 1.41z"/></svg>`;
 }
@@ -538,7 +587,11 @@ function authorBlock(author) {
           <span class="display-name">${escapeHtml(author.name)}</span>
           ${author.verified ? verifiedBadge() : ""}
         </div>
-        <div class="handle">@${escapeHtml(author.screenName)}</div>
+        ${
+          author.screenName && author.screenName !== author.name
+            ? `<div class="handle">@${escapeHtml(author.screenName)}</div>`
+            : ""
+        }
       </div>
     </div>
   `;
@@ -629,7 +682,7 @@ function renderPreview() {
       ${tweetInner(tweet)}
       ${
         state.showDate
-          ? `<div class="meta"><span>${escapeHtml(formatTime(tweet.createdAt))}</span><span>X / Twitter</span></div>`
+          ? `<div class="meta"><span>${escapeHtml(formatTime(tweet.createdAt))}</span><span>${escapeHtml(sourceLabel(tweet))}</span></div>`
           : ""
       }
       ${state.showSource ? `<div class="source">${escapeHtml(tweet.url)}</div>` : ""}
@@ -661,7 +714,7 @@ function renderControls() {
 }
 
 function filenameBase(tweet) {
-  const handle = (tweet.author.screenName || "tweet").replace(/[^\w.-]/g, "");
+  const handle = (tweet.author.screenName || "post").replace(/[^\w.-]/g, "") || "post";
   return `tweet2share-${handle}-${tweet.id}`;
 }
 
@@ -822,9 +875,11 @@ function drawAuthor(ctx, author, img, x, y, theme, avatarSize, fontFamily) {
   ctx.fillText(author.name || "", textX, y + 4);
   const nameWidth = ctx.measureText(author.name || "").width;
   if (author.verified) drawVerified(ctx, textX + nameWidth + 6, y + 5, 16);
-  ctx.fillStyle = theme.muted;
-  ctx.font = `13px ${fontFamily}`;
-  ctx.fillText(`@${author.screenName || ""}`, textX, y + 26);
+  if (author.screenName && author.screenName !== author.name) {
+    ctx.fillStyle = theme.muted;
+    ctx.font = `13px ${fontFamily}`;
+    ctx.fillText(`@${author.screenName}`, textX, y + 26);
+  }
   return avatarSize;
 }
 
@@ -1005,7 +1060,7 @@ async function captureCanvas() {
     ctx.textBaseline = "top";
     const left = formatTime(tweet.createdAt);
     ctx.fillText(left, cardX + sidePad, y);
-    const right = "X / Twitter";
+    const right = sourceLabel(tweet);
     ctx.fillText(right, cardX + cardWidth - sidePad - ctx.measureText(right).width, y);
     y += 16;
   }
@@ -1057,6 +1112,22 @@ function slicePng(dataUrl, pageHeight) {
   });
 }
 
+function detectPlatform(url) {
+  if (extractWeiboRef(url, { allowBareId: state.platform === "weibo" })) return "weibo";
+  if (extractTweetId(url)) return "x";
+  return state.platform;
+}
+
+async function loadPost(url) {
+  const platform = detectPlatform(url);
+  state.platform = platform;
+  applyPlatformUi();
+  if (platform === "weibo") {
+    return fetchWeibo(url, { allowBareId: true });
+  }
+  return fetchTweet(url);
+}
+
 async function parseUrl(url) {
   showError("");
   showStatus("");
@@ -1069,7 +1140,7 @@ async function parseUrl(url) {
   els.parseBtn.disabled = true;
   els.parseBtn.innerHTML = `<span class="loading"></span>${t("importing")}`;
   try {
-    state.tweet = await localizeTweetImages(await fetchTweet(url));
+    state.tweet = await localizeTweetImages(await loadPost(url));
     showStatus("imported");
     renderPreview();
   } catch (err) {
@@ -1087,8 +1158,9 @@ els.form.addEventListener("submit", (event) => {
 });
 
 els.sampleBtn.addEventListener("click", () => {
-  els.input.value = SAMPLE_URL;
-  parseUrl(SAMPLE_URL);
+  const sample = SAMPLE_URLS[state.platform] || SAMPLE_URLS.x;
+  els.input.value = sample;
+  parseUrl(sample);
 });
 
 els.clearBtn.addEventListener("click", () => {
@@ -1240,6 +1312,13 @@ els.langSwitch.addEventListener("click", (event) => {
   applyI18n();
   renderControls();
   renderPreview();
+});
+
+els.platformSwitch.addEventListener("click", (event) => {
+  const btn = event.target.closest("[data-platform]");
+  if (!btn || btn.dataset.platform === state.platform) return;
+  state.platform = btn.dataset.platform;
+  applyPlatformUi();
 });
 
 applyI18n();

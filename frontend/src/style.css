@@ -132,14 +132,30 @@ a {
 }
 
 .github-link {
-  font-size: 12px;
-  color: var(--muted);
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  height: 32px;
+  padding: 0 12px 0 10px;
+  border-radius: 999px;
+  background: #111;
+  color: #fff;
   text-decoration: none;
-  letter-spacing: 0.02em;
+  font-size: 12.5px;
+  font-weight: 600;
+  letter-spacing: 0.01em;
+  white-space: nowrap;
+}
+
+.github-icon {
+  width: 15px;
+  height: 15px;
+  flex: none;
 }
 
 .github-link:hover {
-  color: var(--ink);
+  background: #2a2a2a;
+  color: #fff;
 }
 
 .credit {
@@ -278,6 +294,27 @@ a {
   font-size: 12px;
   font-weight: 600;
   color: #344054;
+}
+
+.platform-switch {
+  display: inline-flex;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: #fff;
+  overflow: hidden;
+  width: fit-content;
+}
+
+.platform-switch button {
+  height: 28px;
+  padding: 0 12px;
+  font-size: 12px;
+  color: var(--muted);
+}
+
+.platform-switch button.active {
+  background: #111;
+  color: #fff;
 }
 
 .field {
@@ -848,5 +885,15 @@ select {
   }
   .chips {
     display: none;
+  }
+}
+
+@media (max-width: 640px) {
+  .topbar {
+    padding: 0 12px;
+  }
+  .github-link {
+    padding: 0 10px 0 8px;
+    font-size: 12px;
   }
 }

@@ -96,6 +96,7 @@ export function mapTweet(raw, depth = 0) {
     photos: asPhotos(raw.media),
     quote,
     replies: [],
+    platform: "x",
   };
 }
 
