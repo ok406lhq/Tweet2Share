@@ -131,6 +131,17 @@ a {
   color: #fff;
 }
 
+.github-link {
+  font-size: 12px;
+  color: var(--muted);
+  text-decoration: none;
+  letter-spacing: 0.02em;
+}
+
+.github-link:hover {
+  color: var(--ink);
+}
+
 .credit {
   font-size: 12px;
   color: var(--muted);
@@ -697,6 +708,44 @@ select {
 
 .quote .display-name {
   font-size: 14px;
+}
+
+.replies {
+  margin-top: 22px;
+  padding-top: 14px;
+  border-top: 1px solid var(--card-line);
+}
+
+.replies-h {
+  color: var(--card-muted);
+  font-size: 12px;
+  margin-bottom: 12px;
+}
+
+.reply {
+  padding: 12px 0 14px;
+}
+
+.reply + .reply {
+  border-top: 1px solid var(--card-line);
+}
+
+.reply .body {
+  font-size: calc(var(--card-size) * 0.72);
+  margin-top: 10px;
+}
+
+.reply .avatar {
+  width: 32px;
+  height: 32px;
+}
+
+.reply .display-name {
+  font-size: 14px;
+}
+
+.reply .photos {
+  margin-top: 12px;
 }
 
 .meta {

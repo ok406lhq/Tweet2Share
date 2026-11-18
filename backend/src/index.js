@@ -1,7 +1,7 @@
 import express from "express";
 import { extractTweetId } from "./parseUrl.js";
 import { fetchTweetById } from "./fetchTweet.js";
-import { mapTweet } from "./mapTweet.js";
+import { mapTweet, mapReplies } from "./mapTweet.js";
 import { proxyImage } from "./proxy.js";
 
 const PORT = Number(process.env.PORT) || 3001;
@@ -28,6 +28,7 @@ app.post("/api/parse", async (req, res) => {
       res.status(404).json({ error: "TWEET_NOT_FOUND", message: "无法获取该公开推文" });
       return;
     }
+    tweet.replies = mapReplies(raw._replies, tweet.id);
     res.json({ tweet });
   } catch (err) {
     if (err && err.code === 404) {

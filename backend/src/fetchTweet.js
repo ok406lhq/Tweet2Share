@@ -1,3 +1,4 @@
+const FXTWITTER_CONVO = "https://api.fxtwitter.com/2/conversation/";
 const FXTWITTER_V2 = "https://api.fxtwitter.com/2/status/";
 const FXTWITTER_V1 = "https://api.fxtwitter.com/status/";
 const TIMEOUT_MS = 15000;
@@ -26,11 +27,22 @@ function unwrapStatus(payload) {
   return payload.status || payload.tweet || null;
 }
 
+function unwrapReplies(payload) {
+  if (!payload || typeof payload !== "object") return [];
+  if (Array.isArray(payload.replies)) return payload.replies;
+  return [];
+}
+
 export async function fetchTweetById(id) {
-  const endpoints = [`${FXTWITTER_V2}${id}`, `${FXTWITTER_V1}${id}`];
+  const endpoints = [
+    `${FXTWITTER_CONVO}${id}`,
+    `${FXTWITTER_V2}${id}`,
+    `${FXTWITTER_V1}${id}`,
+  ];
   let lastError = null;
 
   for (const url of endpoints) {
+    const isConversation = url.includes("/conversation/");
     try {
       const result = await requestJson(url);
       if (!result.data) {
@@ -41,13 +53,11 @@ export async function fetchTweetById(id) {
       const code = Number(result.data.code || result.status);
       const status = unwrapStatus(result.data);
 
-      if (code === 404 || result.status === 404) {
-        const error = new Error("TWEET_NOT_FOUND");
-        error.code = 404;
-        throw error;
-      }
-
-      if (code === 401 || code === 403) {
+      if (code === 404 || result.status === 404 || code === 401 || code === 403) {
+        if (isConversation) {
+          lastError = { kind: "upstream", status: code || result.status };
+          continue;
+        }
         const error = new Error("TWEET_NOT_FOUND");
         error.code = 404;
         throw error;
@@ -59,11 +69,16 @@ export async function fetchTweetById(id) {
       }
 
       if (!status || status.type === "tombstone") {
+        if (isConversation) {
+          lastError = { kind: "upstream", status: code };
+          continue;
+        }
         const error = new Error("TWEET_NOT_FOUND");
         error.code = 404;
         throw error;
       }
 
+      status._replies = unwrapReplies(result.data);
       return status;
     } catch (err) {
       if (err && err.code === 404) throw err;

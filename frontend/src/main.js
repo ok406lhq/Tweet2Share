@@ -27,6 +27,7 @@ const FONTS = [
 ];
 
 const CREDIT = "anomo";
+const REPO_URL = "https://github.com/ok406lhq/Tweet2Share";
 
 const I18N = {
   zh: {
@@ -54,10 +55,13 @@ const I18N = {
     shadow: "阴影",
     contextTitle: "保留上下文",
     contextHint: "缺失信息不会被补造。",
-    togPhotos: "图片与视频封面",
+    togPhotos: "图片",
     togQuote: "引用推文",
     togDate: "发布时间",
     togSource: "卡片下方来源链接",
+    togReplies: "下方评论",
+    replyCount: "评论条数",
+    repliesHeading: "评论",
     exportTitle: "导出",
     exportHint: "长图适配完整内容；分页适合超长帖。",
     savePng: "保存 PNG",
@@ -112,10 +116,13 @@ const I18N = {
     shadow: "Shadow",
     contextTitle: "Keep context",
     contextHint: "Missing details are never invented.",
-    togPhotos: "Photos and video covers",
+    togPhotos: "Photos",
     togQuote: "Quoted tweet",
     togDate: "Posted time",
     togSource: "Source link under the card",
+    togReplies: "Comments below",
+    replyCount: "Comment count",
+    repliesHeading: "Comments",
     exportTitle: "Export",
     exportHint: "A long image fits the full post. Pages work for very long threads.",
     savePng: "Save PNG",
@@ -167,6 +174,8 @@ const state = {
   showQuote: true,
   showDate: true,
   showSource: true,
+  showReplies: true,
+  replyCount: 5,
 };
 
 function t(key) {
@@ -188,6 +197,7 @@ app.innerHTML = `
           <button type="button" data-lang="zh" class="active">中文</button>
           <button type="button" data-lang="en">EN</button>
         </div>
+        <a class="github-link" href="${REPO_URL}" target="_blank" rel="noopener">GitHub</a>
         <span class="credit">${CREDIT}</span>
       </div>
     </header>
@@ -270,10 +280,15 @@ app.innerHTML = `
               </div>
             </div>
             <div class="toggles">
-              <label class="toggle"><input id="tog-photos" type="checkbox" checked /> <span data-i18n="togPhotos">图片与视频封面</span></label>
+              <label class="toggle"><input id="tog-photos" type="checkbox" checked /> <span data-i18n="togPhotos">图片</span></label>
               <label class="toggle"><input id="tog-quote" type="checkbox" checked /> <span data-i18n="togQuote">引用推文</span></label>
               <label class="toggle"><input id="tog-date" type="checkbox" checked /> <span data-i18n="togDate">发布时间</span></label>
               <label class="toggle"><input id="tog-source" type="checkbox" checked /> <span data-i18n="togSource">卡片下方来源链接</span></label>
+              <label class="toggle"><input id="tog-replies" type="checkbox" checked /> <span data-i18n="togReplies">下方评论</span></label>
+            </div>
+            <div class="control" id="reply-count-control">
+              <div class="control-h"><span data-i18n="replyCount">评论条数</span><span id="reply-count-val">5</span></div>
+              <input id="reply-count-range" type="range" min="0" max="20" value="5" />
             </div>
           </section>
 
@@ -357,6 +372,9 @@ const els = {
   togQuote: document.querySelector("#tog-quote"),
   togDate: document.querySelector("#tog-date"),
   togSource: document.querySelector("#tog-source"),
+  togReplies: document.querySelector("#tog-replies"),
+  replyCountRange: document.querySelector("#reply-count-range"),
+  replyCountVal: document.querySelector("#reply-count-val"),
   exportLong: document.querySelector("#export-long"),
   exportCopy: document.querySelector("#export-copy"),
   exportPages: document.querySelector("#export-pages"),
@@ -468,6 +486,9 @@ async function localizeTweetImages(tweet) {
     }
   }
   if (tweet.quote) await localizeTweetImages(tweet.quote);
+  if (Array.isArray(tweet.replies)) {
+    for (const reply of tweet.replies) await localizeTweetImages(reply);
+  }
   return tweet;
 }
 
@@ -536,6 +557,28 @@ function photosBlock(photos) {
   return `<div class="photos">${imgs}</div>`;
 }
 
+function visibleReplies(tweet) {
+  if (!state.showReplies || !tweet?.replies?.length) return [];
+  return tweet.replies.slice(0, state.replyCount);
+}
+
+function repliesBlock(tweet) {
+  const replies = visibleReplies(tweet);
+  if (!replies.length) return "";
+  const items = replies
+    .map(
+      (reply) => `
+        <div class="reply">
+          ${authorBlock(reply.author)}
+          <div class="body">${escapeHtml(reply.text)}</div>
+          ${photosBlock(reply.photos)}
+        </div>
+      `
+    )
+    .join("");
+  return `<div class="replies"><div class="replies-h">${t("repliesHeading")}</div>${items}</div>`;
+}
+
 function tweetInner(tweet, nested = false) {
   return `
     ${authorBlock(tweet.author)}
@@ -546,6 +589,7 @@ function tweetInner(tweet, nested = false) {
         ? `<div class="quote">${tweetInner(tweet.quote, true)}</div>`
         : ""
     }
+    ${!nested ? repliesBlock(tweet) : ""}
   `;
 }
 
@@ -729,6 +773,8 @@ async function collectImages(tweet, bucket) {
     });
   }
   if (state.showQuote && tweet.quote) await collectImages(tweet.quote, bucket);
+  if (!tweet.replies) return;
+  for (const reply of visibleReplies(tweet)) await collectImages(reply, bucket);
 }
 
 function drawVerified(ctx, x, y, size) {
@@ -801,6 +847,15 @@ function measureTweetBlock(ctx, tweet, contentWidth, nested, fontFamily, bodySiz
   if (!nested && state.showQuote && tweet.quote) {
     height += 18 + 26 + measureTweetBlock(ctx, tweet.quote, contentWidth - 28, true, fontFamily, bodySize, images);
   }
+  if (!nested) {
+    const replies = visibleReplies(tweet);
+    if (replies.length) {
+      height += 52;
+      replies.forEach((reply) => {
+        height += 16 + measureTweetBlock(ctx, reply, contentWidth, true, fontFamily, bodySize, images);
+      });
+    }
+  }
   return height;
 }
 
@@ -848,6 +903,28 @@ function paintTweetBlock(ctx, tweet, x, y, contentWidth, nested, theme, fontFami
     ctx.stroke();
     cursor = paintTweetBlock(ctx, tweet.quote, x + 14, cursor + 14, innerWidth, true, theme, fontFamily, bodySize, images);
     cursor += 12;
+  }
+  if (!nested) {
+    const replies = visibleReplies(tweet);
+    if (replies.length) {
+      cursor += 22;
+      ctx.strokeStyle = theme.line;
+      ctx.lineWidth = 1;
+      ctx.beginPath();
+      ctx.moveTo(x, cursor);
+      ctx.lineTo(x + contentWidth, cursor);
+      ctx.stroke();
+      cursor += 12;
+      ctx.fillStyle = theme.muted;
+      ctx.font = `12px ${fontFamily}`;
+      ctx.textBaseline = "top";
+      ctx.fillText(t("repliesHeading"), x, cursor);
+      cursor += 18;
+      for (const reply of replies) {
+        cursor = paintTweetBlock(ctx, reply, x, cursor, contentWidth, true, theme, fontFamily, bodySize, images);
+        cursor += 16;
+      }
+    }
   }
   return cursor;
 }
@@ -1088,6 +1165,16 @@ els.togDate.addEventListener("change", () => {
 });
 els.togSource.addEventListener("change", () => {
   state.showSource = els.togSource.checked;
+  renderPreview();
+});
+els.togReplies.addEventListener("change", () => {
+  state.showReplies = els.togReplies.checked;
+  document.querySelector("#reply-count-control").hidden = !state.showReplies;
+  renderPreview();
+});
+els.replyCountRange.addEventListener("input", () => {
+  state.replyCount = Number(els.replyCountRange.value);
+  els.replyCountVal.textContent = String(state.replyCount);
   renderPreview();
 });
 

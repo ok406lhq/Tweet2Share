@@ -16,8 +16,9 @@ Flow: copy a link → import → choose a layout → export.
 
 - Accepts `x.com`, `twitter.com`, common public mirrors, and raw tweet IDs
 - Keeps the body, display name, handle, avatar, and verification mark, including line breaks
-- Loads photos in original order, preferring `name=orig` full-size images
+- Loads still photos in original order, preferring `name=orig` full-size images; GIFs and videos are omitted
 - Nested quoted tweets
+- Optional comments under the post, ranked by relevance, with a count slider; ad-like replies are skipped
 - Long PNG export, or pages around 2000px tall
 - Chinese / English UI switch (Chinese by default on the site)
 - Credit `anomo` in the top-right of the site and the bottom-right of exported images
