@@ -37,7 +37,19 @@
 
 Pages 只托管静态前端。推送到 `main` 后，Actions 会构建 `frontend/`。首次需要在仓库 Settings → Pages 把 Source 设为 GitHub Actions。
 
-Pages 没有后端。浏览器直连 FxTwitter；导出 X 图时通过带 CORS 的图片代理加载。微博 JSON 没有 CORS，微博导入和出图需要本地后端（`bash start.sh`）。
+Pages 没有后端。浏览器直连 FxTwitter；导出 X 图时通过带 CORS 的图片代理加载。
+
+微博 JSON 没有 CORS，而且必须带 `X-Requested-With: XMLHttpRequest` 才会返回数据。公开 CORS 代理会丢掉这个头。
+
+要在 Pages 上导入微博：
+
+1. 安装 [Wrangler](https://developers.cloudflare.com/workers/wrangler/install-and-update/) 并登录。
+2. 在仓库根目录执行：`npx wrangler deploy --config worker/wrangler.toml`
+3. 复制 Worker 地址（例如 `https://tweet2share-weibo.<账号>.workers.dev`）。
+4. 打开 GitHub 仓库 Settings → Secrets and variables → Actions → Variables，新增 `VITE_WEIBO_PROXY`，值为该地址。
+5. 重新跑一遍 Pages 工作流。
+
+未配置该变量时，请用本地后端（`bash start.sh`）。
 
 ## 本地运行
 

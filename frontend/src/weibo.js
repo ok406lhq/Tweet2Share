@@ -336,6 +336,18 @@ export function mapWeiboComments(list, parentId, limit = 40) {
     .filter(Boolean);
 }
 
+function weiboProxyBase() {
+  const raw = String(import.meta.env.VITE_WEIBO_PROXY || "").trim().replace(/\/+$/, "");
+  if (!raw) return "";
+  try {
+    const parsed = new URL(raw);
+    if (parsed.protocol !== "https:" && parsed.protocol !== "http:") return "";
+    return parsed.origin;
+  } catch {
+    return "";
+  }
+}
+
 async function fetchJson(url) {
   const response = await fetch(url, {
     method: "GET",
@@ -352,57 +364,75 @@ function unwrapStatus(payload) {
   return status && status.id ? status : null;
 }
 
+async function fetchViaLocalParse(ref) {
+  const response = await fetch("/api/parse", {
+    method: "POST",
+    headers: { Accept: "application/json", "Content-Type": "application/json" },
+    body: JSON.stringify({ url: `https://m.weibo.cn/detail/${ref.mid}` }),
+  });
+  const payload = await response.json().catch(() => null);
+  const isJson = payload && typeof payload === "object";
+  if (response.ok && isJson && payload.tweet) return payload.tweet;
+  if (isJson && response.status === 400) throw fail("invalidUrl", 400, "INVALID_URL");
+  if (isJson && response.status === 404) throw fail("notFound", 404, "TWEET_NOT_FOUND");
+  if (isJson && response.status >= 500) throw fail("upstream", 502, "UPSTREAM_UNAVAILABLE");
+  return null;
+}
+
+async function fetchViaProxy(ref, base) {
+  const show = await fetchJson(`${base}/statuses/show?id=${encodeURIComponent(ref.mid)}`);
+  const status = unwrapStatus(show.data);
+  if (!status) {
+    if (show.status === 404) throw fail("notFound", 404, "TWEET_NOT_FOUND");
+    throw fail("upstream", 502, "UPSTREAM_UNAVAILABLE");
+  }
+  if (status.isLongText) {
+    try {
+      const extra = await fetchJson(`${base}/statuses/extend?id=${encodeURIComponent(ref.mid)}`);
+      const longText = extra.data && extra.data.data && extra.data.data.longTextContent;
+      if (typeof longText === "string" && longText.trim()) status.text = longText;
+    } catch {
+    }
+  }
+  const tweet = mapWeiboStatus(status, 0, ref);
+  if (!tweet) throw fail("notFound", 404, "TWEET_NOT_FOUND");
+  try {
+    const hot = await fetchJson(
+      `${base}/comments/hotflow?id=${encodeURIComponent(ref.mid)}&mid=${encodeURIComponent(ref.mid)}&max_id_type=0`
+    );
+    const list = hot.data && hot.data.data && hot.data.data.data;
+    tweet.replies = mapWeiboComments(list, tweet.id);
+  } catch {
+    tweet.replies = [];
+  }
+  return tweet;
+}
+
+function onGitHubPages() {
+  return typeof location !== "undefined" && /github\.io$/i.test(location.hostname);
+}
+
 export async function fetchWeibo(input, options = {}) {
   const ref = extractWeiboRef(input, options);
   if (!ref) throw fail("invalidUrl", 400, "INVALID_URL");
 
-  if (import.meta.env.DEV) {
+  try {
+    const tweet = await fetchViaLocalParse(ref);
+    if (tweet) return tweet;
+  } catch (err) {
+    if (err && err.key) throw err;
+  }
+
+  const proxy = weiboProxyBase();
+  if (proxy) {
     try {
-      const response = await fetch("/api/parse", {
-        method: "POST",
-        headers: { Accept: "application/json", "Content-Type": "application/json" },
-        body: JSON.stringify({ url: `https://m.weibo.cn/detail/${ref.mid}` }),
-      });
-      const payload = await response.json().catch(() => null);
-      const isJson = payload && typeof payload === "object";
-      if (response.ok && isJson && payload.tweet) return payload.tweet;
-      if (isJson && response.status === 400) throw fail("invalidUrl", 400, "INVALID_URL");
-      if (isJson && response.status === 404) throw fail("notFound", 404, "TWEET_NOT_FOUND");
-      if (isJson && response.status >= 500) throw fail("upstream", 502, "UPSTREAM_UNAVAILABLE");
+      return await fetchViaProxy(ref, proxy);
     } catch (err) {
       if (err && err.key) throw err;
+      throw fail("upstream", 502, "UPSTREAM_UNAVAILABLE");
     }
   }
 
-  try {
-    const show = await fetchJson(`https://m.weibo.cn/statuses/show?id=${encodeURIComponent(ref.mid)}`);
-    const status = unwrapStatus(show.data);
-    if (!status) {
-      if (show.status === 404) throw fail("notFound", 404, "TWEET_NOT_FOUND");
-      throw fail("upstream", 502, "UPSTREAM_UNAVAILABLE");
-    }
-    if (status.isLongText) {
-      try {
-        const extra = await fetchJson(`https://m.weibo.cn/statuses/extend?id=${encodeURIComponent(ref.mid)}`);
-        const longText = extra.data && extra.data.data && extra.data.data.longTextContent;
-        if (typeof longText === "string" && longText.trim()) status.text = longText;
-      } catch {
-      }
-    }
-    const tweet = mapWeiboStatus(status, 0, ref);
-    if (!tweet) throw fail("notFound", 404, "TWEET_NOT_FOUND");
-    try {
-      const hot = await fetchJson(
-        `https://m.weibo.cn/comments/hotflow?id=${encodeURIComponent(ref.mid)}&mid=${encodeURIComponent(ref.mid)}&max_id_type=0`
-      );
-      const list = hot.data && hot.data.data && hot.data.data.data;
-      tweet.replies = mapWeiboComments(list, tweet.id);
-    } catch {
-      tweet.replies = [];
-    }
-    return tweet;
-  } catch (err) {
-    if (err && err.key) throw err;
-    throw fail("network", 502, "UPSTREAM_UNAVAILABLE");
-  }
+  if (onGitHubPages()) throw fail("weiboPages", 502, "WEIBO_PAGES_UNAVAILABLE");
+  throw fail("network", 502, "UPSTREAM_UNAVAILABLE");
 }

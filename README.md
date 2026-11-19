@@ -37,7 +37,19 @@ Repository: https://github.com/ok406lhq/Tweet2Share
 
 Pages hosts the static frontend only. Pushing `main` builds `frontend/` with Actions. Set Pages Source to GitHub Actions the first time (Settings → Pages).
 
-On Pages there is no backend. The browser talks to FxTwitter directly, and X images are loaded through a CORS-friendly image proxy for export. Weibo JSON has no CORS, so Weibo import and image export need the local backend (`bash start.sh`).
+On Pages there is no backend. The browser talks to FxTwitter directly, and X images are loaded through a CORS-friendly image proxy for export.
+
+Weibo JSON has no CORS and only returns data with `X-Requested-With: XMLHttpRequest`. Public CORS proxies drop that header.
+
+To enable Weibo on Pages:
+
+1. Install [Wrangler](https://developers.cloudflare.com/workers/wrangler/install-and-update/) and log in.
+2. From the repo root: `npx wrangler deploy --config worker/wrangler.toml`
+3. Copy the Worker URL (for example `https://tweet2share-weibo.<account>.workers.dev`).
+4. In the GitHub repo: Settings → Secrets and variables → Actions → Variables → `VITE_WEIBO_PROXY` = that URL.
+5. Re-run the Pages workflow.
+
+Without that variable, use the local backend (`bash start.sh`).
 
 ## Run locally
 
